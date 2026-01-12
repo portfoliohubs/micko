@@ -1073,12 +1073,17 @@
         }
 
         .section {
+            opacity: 1;
+            transform: none;
+        }
+
+        .section.animate-ready {
             opacity: 0;
             transform: translateY(30px);
             transition: all 0.8s ease-out;
         }
 
-        .section.visible {
+        .section.animate-ready.visible {
             opacity: 1;
             transform: translateY(0);
         }
@@ -1284,11 +1289,6 @@
             transition: width 0.6s, height 0.6s;
         }
 
-        .social-link:hover::before {
-            width: 100px;
-            height: 100px;
-        }
-
         /* Loading Screen */
         .loading-screen {
             position: fixed;
@@ -1302,11 +1302,20 @@
             align-items: center;
             z-index: 9999;
             transition: opacity 0.5s, visibility 0.5s;
+            animation: loaderAutoHide 0.6s ease forwards;
+            animation-delay: 1.2s;
         }
 
         .loading-screen.hidden {
             opacity: 0;
             visibility: hidden;
+        }
+
+        @keyframes loaderAutoHide {
+            to {
+                opacity: 0;
+                visibility: hidden;
+            }
         }
 
         .loading-spinner {
@@ -1316,18 +1325,6 @@
             border-top: 3px solid var(--primary-color);
             border-radius: 50%;
             animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Enhanced Buttons */
-        .btn {
-            position: relative;
-            overflow: hidden;
-            z-index: 1;
         }
 
         .btn::before {
@@ -1371,9 +1368,20 @@
 </head>
 <body>
     <!-- Loading Screen -->
-    <div class="loading-screen" id="loadingScreen">
+    <div class="loading-screen hidden" id="loadingScreen" style="display: none;">
         <div class="loading-spinner"></div>
     </div>
+
+    <script>
+        (function () {
+            var ls = document.getElementById('loadingScreen');
+            if (!ls) return;
+            ls.classList.add('hidden');
+            setTimeout(function () {
+                ls.style.display = 'none';
+            }, 600);
+        })();
+    </script>
 
     <canvas id="particles-canvas"></canvas>
     <!-- Header -->
@@ -1605,14 +1613,14 @@
         </div>
     </footer>
 
-    <canvas id="particles-canvas"></canvas>
-
     <script>
         // Particle Background Animation
         class ParticleBackground {
             constructor() {
                 this.canvas = document.getElementById('particles-canvas');
+                if (!this.canvas) return;
                 this.ctx = this.canvas.getContext('2d');
+                if (!this.ctx) return;
                 this.particles = [];
                 this.particleCount = 50;
                 this.init();
@@ -1672,8 +1680,13 @@
             }
         }
 
-        // Initialize particle background
-        const particleBg = new ParticleBackground();
+        // Initialize particle background (safe)
+        let particleBg;
+        try {
+            particleBg = new ParticleBackground();
+        } catch (err) {
+            console.error('Particle init error:', err);
+        }
 
         // Configuration Data (loaded from config.toml in actual Hugo site)
         const siteData = {
@@ -1802,40 +1815,104 @@
             }
         };
 
-        const sectionObserver = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('visible');
-                    
-                    // Animate stagger items within the section
-                    const staggerItems = entry.target.querySelectorAll('.stagger-item');
-                    staggerItems.forEach((item, index) => {
-                        setTimeout(() => {
-                            item.classList.add('visible');
-                        }, index * 100);
-                    });
+        let currentLang = 'en';
+        let currentTheme = localStorage.getItem('theme') || 'light';
 
-                    // Animate skill progress bars
-                    const progressBars = entry.target.querySelectorAll('.skill-progress-bar');
-                    progressBars.forEach(bar => {
-                        const width = bar.getAttribute('data-width') || '80%';
-                        setTimeout(() => {
-                            bar.style.width = width;
-                        }, 500);
-                    });
-
-                    // Animate timeline items
-                    const timelineItems = entry.target.querySelectorAll('.timeline-item');
-                    timelineItems.forEach((item, index) => {
-                        setTimeout(() => {
-                            item.classList.add('visible');
-                        }, index * 200);
-                    });
-                }
-            });
+        document.addEventListener('DOMContentLoaded', function() {
+            hideLoadingScreen();
+            try {
+                initTheme();
+                initLanguage();
+                renderContent();
+                initNavigation();
+                initFooter();
+                initScrollAnimations();
+                initTypingEffect();
+            } catch (err) {
+                console.error('Init error:', err);
+            } finally {
+                hideLoadingScreen(true);
+            }
         });
 
-        // Theme Toggle
+        window.addEventListener('load', function() {
+            hideLoadingScreen(true);
+        });
+
+        function hideLoadingScreen(immediate = false) {
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (!loadingScreen) return;
+
+            const doHide = () => {
+                loadingScreen.classList.add('hidden');
+                loadingScreen.style.pointerEvents = 'none';
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 600);
+            };
+
+            if (immediate) {
+                doHide();
+            } else {
+                setTimeout(doHide, 800);
+            }
+        }
+
+        function initTypingEffect() {
+            const typingElements = document.querySelectorAll('.typing-text');
+            typingElements.forEach(element => {
+                const text = element.textContent;
+                element.textContent = '';
+                element.style.width = '0';
+                
+                setTimeout(() => {
+                    element.textContent = text;
+                    element.style.width = '100%';
+                }, 2000);
+            });
+        }
+
+        function initScrollAnimations() {
+            const observerOptions = {
+                threshold: 0.1,
+                rootMargin: '0px 0px -50px 0px'
+            };
+
+            const sectionObserver = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                        
+                        const staggerItems = entry.target.querySelectorAll('.stagger-item');
+                        staggerItems.forEach((item, index) => {
+                            setTimeout(() => {
+                                item.classList.add('visible');
+                            }, index * 100);
+                        });
+
+                        const progressBars = entry.target.querySelectorAll('.skill-progress-bar');
+                        progressBars.forEach(bar => {
+                            const width = bar.getAttribute('data-width') || '80%';
+                            setTimeout(() => {
+                                bar.style.width = width;
+                            }, 500);
+                        });
+
+                        const timelineItems = entry.target.querySelectorAll('.timeline-item');
+                        timelineItems.forEach((item, index) => {
+                            setTimeout(() => {
+                                item.classList.add('visible');
+                            }, index * 200);
+                        });
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('.section').forEach(section => {
+                sectionObserver.observe(section);
+            });
+        }
+
         function initTheme() {
             document.documentElement.setAttribute('data-theme', currentTheme);
             const themeIcon = document.querySelector('#themeToggle i');
@@ -2036,21 +2113,6 @@
                 `;
             }
             
-            if (data.whatsapp) {
-                const waNumber = data.whatsapp.replace(/\s/g, '').replace('+', '');
-                methodsHtml += `
-                    <a href="https://wa.me/${waNumber}" target="_blank" class="contact-method">
-                        <div class="contact-icon whatsapp">
-                            <i class="fab fa-whatsapp"></i>
-                        </div>
-                        <div class="contact-info">
-                            <span class="contact-label">${currentLang === 'en' ? 'WhatsApp' : 'واتساب'}</span>
-                            <span class="contact-value">${data.whatsapp}</span>
-                        </div>
-                    </a>
-                `;
-            }
-            
             if (data.email) {
                 methodsHtml += `
                     <a href="mailto:${data.email}" class="contact-method">
@@ -2121,7 +2183,9 @@
             const closeBtn = document.getElementById('closeBtn');
             const mobileNav = document.getElementById('mobileNav');
             const navLinks = document.querySelectorAll('.nav-links a, .bottom-nav .nav-item');
-            
+
+            if (!menuBtn || !closeBtn || !mobileNav) return;
+
             menuBtn.addEventListener('click', () => mobileNav.classList.add('active'));
             closeBtn.addEventListener('click', () => mobileNav.classList.remove('active'));
             
@@ -2161,8 +2225,13 @@
 
         // Footer
         function initFooter() {
-            document.getElementById('currentYear').textContent = new Date().getFullYear();
-            document.getElementById('footerName').textContent = siteData[currentLang].hero.name;
+            const yearEl = document.getElementById('currentYear');
+            if (yearEl) yearEl.textContent = new Date().getFullYear();
+
+            const footerNameEl = document.getElementById('footerName');
+            if (footerNameEl && siteData[currentLang] && siteData[currentLang].hero) {
+                footerNameEl.textContent = siteData[currentLang].hero.name;
+            }
         }
     </script>
 </body>
