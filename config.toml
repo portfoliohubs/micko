@@ -289,7 +289,7 @@ defaultContentLanguage = "en"
 
     [[params.education.timeline]]
       year = "2026"
-      event = "CEO of DentalHubs Agency"
+      event = "Founder & Web Developer of portfolioHubs"
     
     # Certificates (images will be uploaded via GitHub issues)
     # [[params.education.certificates]]
